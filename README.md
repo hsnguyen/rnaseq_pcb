@@ -40,8 +40,9 @@ nextflow run nf-core/rnaseq \
     --outdir <OUTDIR> \
     --gtf <GTF> \
     --fasta <GENOME FASTA> \
-    -profile <docker/singularity/.../institute>
+    -profile pawsey1152,singularity
 ```
+or using the example parameters set in `assets/pcb/runparams/`. 
 
 For more details and further functionality, please refer to the [usage documentation](https://nf-co.re/rnaseq/usage) and the [parameter documentation](https://nf-co.re/rnaseq/parameters).
 
