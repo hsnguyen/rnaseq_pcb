@@ -945,6 +945,19 @@
                     "default": true,
                     "description": "Build the ShinyNGS application bundle."
                 },
+                "differentialabundance_shinyngs_deploy_to_shinyapps_io": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Deploy the ShinyNGS application to shinyapps.io"
+                },
+                "differentialabundance_shinyngs_shinyapps_account": {
+                    "type": "string",
+                    "description": "Account on shinyapps.io"
+                },
+                "differentialabundance_shinyngs_shinyapps_app_name": {
+                    "type": "string",
+                    "description": "The name of the app to push to in your shinyapps.io account"
+                },
                 "differentialabundance_functional_method": {
                     "type": "string",
                     "enum": ["none", "gsea", "gprofiler2", "decoupler", "grea"],
