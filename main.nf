@@ -178,8 +178,8 @@ workflow {
 
     main:
     if (params.run_differentialabundance) {
-        if (!params.differentialabundance_input || !params.differentialabundance_contrasts || !params.differentialabundance_gtf) {
-            error 'When --run_differentialabundance is enabled, --differentialabundance_input, --differentialabundance_contrasts, and --differentialabundance_gtf are required'
+        if (!params.differentialabundance_contrasts || !params.differentialabundance_gtf) {
+            error 'When --run_differentialabundance is enabled, --differentialabundance_contrasts, and --differentialabundance_gtf are required'
         }
         if (params.skip_quantification_merge) {
             error 'Differentialabundance requires merged gene counts; do not combine --run_differentialabundance with --skip_quantification_merge'
