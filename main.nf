@@ -47,6 +47,7 @@ include { PIPELINE_COMPLETION        } from './subworkflows/local/utils_nfcore_r
 include { checkMaxContigSize         } from './subworkflows/local/utils_nfcore_rnaseq_pipeline'
 include { defineQcTools              } from './subworkflows/local/utils_nfcore_rnaseq_pipeline'
 include { isStarIndexLegacy          } from './subworkflows/local/utils_nfcore_rnaseq_pipeline'
+include { RNASEQ_DIFFERENTIALABUNDANCE } from './subworkflows/local/differentialabundance'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -164,6 +165,7 @@ workflow NFCORE_RNASEQ {
     map_status     = RNASEQ.out.map_status     // channel: [id, boolean]
     strand_status  = RNASEQ.out.strand_status  // channel: [id, boolean]
     multiqc_report = RNASEQ.out.multiqc_report // channel: /path/to/multiqc_report.html
+    counts_gene_length_scaled = RNASEQ.out.counts_gene_length_scaled
 }
 
 /*
@@ -175,6 +177,15 @@ workflow NFCORE_RNASEQ {
 workflow {
 
     main:
+    if (params.run_differentialabundance) {
+        if (!params.differentialabundance_input || !params.differentialabundance_contrasts || !params.differentialabundance_gtf) {
+            error 'When --run_differentialabundance is enabled, --differentialabundance_input, --differentialabundance_contrasts, and --differentialabundance_gtf are required'
+        }
+        if (params.skip_quantification_merge) {
+            error 'Differentialabundance requires merged gene counts; do not combine --run_differentialabundance with --skip_quantification_merge'
+        }
+    }
+
     //
     // SUBWORKFLOW: Run initialisation tasks
     //
@@ -194,6 +205,42 @@ workflow {
     // WORKFLOW: Run main workflow
     //
     NFCORE_RNASEQ ()
+
+    if (params.run_differentialabundance) {
+        ch_da_paramsets = NFCORE_RNASEQ.out.counts_gene_length_scaled
+            .map { _meta, counts ->
+                [
+                    id: params.differentialabundance_study_name,
+                    paramset_name: params.differentialabundance_study_name,
+                    params: [
+                        study_name: params.differentialabundance_study_name,
+                        study_type: 'rnaseq',
+                        input: file(params.differentialabundance_input?:params.input, checkIfExists: true), //if not provided try the input from rnaseq pipeline
+                        matrix: counts,
+                        contrasts: file(params.differentialabundance_contrasts, checkIfExists: true),
+                        outdir: "${params.outdir}/differentialabundance",
+                        gtf: file(params.differentialabundance_gtf, checkIfExists: true),
+                        features: params.differentialabundance_features ? file(params.differentialabundance_features, checkIfExists: true) : null,
+                        gene_sets_files: params.differentialabundance_gene_sets ? file(params.differentialabundance_gene_sets, checkIfExists: true) : null,
+                        report_file: file(params.differentialabundance_report, checkIfExists: true),
+                        logo_file: file(params.differentialabundance_logo, checkIfExists: true),
+                        css_file: file(params.differentialabundance_css, checkIfExists: true),
+                        citations_file: file(params.differentialabundance_citations, checkIfExists: true),
+                        shinyngs_build_app: params.differentialabundance_shinyngs_build_app,
+                        functional_method: params.differentialabundance_functional_method,
+                        features_id_col: params.differentialabundance_features_id_col,
+                        features_name_col: params.differentialabundance_features_name_col,
+                        observations_id_col: params.differentialabundance_observations_id_col,
+                        observations_type: 'sample',
+                        exploratory_assay_names: 'raw,variance_stabilised',
+                        exploratory_final_assay: 'variance_stabilised',
+                        differential_method: 'deseq2',
+                        skip_reports: false
+                    ]
+                ]
+            }
+        RNASEQ_DIFFERENTIALABUNDANCE(ch_da_paramsets)
+    }
 
     //
     // SUBWORKFLOW: Run completion tasks

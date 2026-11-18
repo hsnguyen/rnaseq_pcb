@@ -1,4 +1,10 @@
-input: '${projectDir}/assets/pcb/samplesheet/pdo_434_rnaseq_samplesheet.csv'
+input: '${projectDir}/assets/pcb/samplesheet/pdo_434_rnaseqda_samplesheet.csv'
 outdir: '/scratch/pawsey1152/snguyen/pdo/434_rnaseq_test'
 fasta: '/scratch/pawsey1152/snguyen/databases/rnaseq/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz'
 gtf: '/scratch/pawsey1152/snguyen/databases/rnaseq/Homo_sapiens.GRCh38.116.gtf.gz'
+//down here is for differentialabundance analysis
+run_differentialabundance: true
+differentialabundance_contrasts: '${projectDir}/assets/pcb/runparams/pdo_434_rnaseqda_contrast.yml'
+differentialabundance_functional_method: 'gsea'
+differentialabundance_gtf: '/scratch/pawsey1152/snguyen/databases/rnaseq/Homo_sapiens.GRCh38.116.gtf.gz'
+differentialabundance_gene_sets: '/scratch/pawsey1152/snguyen/databases/rnaseq/h.all.v2022.1.Hs.symbols.gmt'

@@ -473,6 +473,7 @@ workflow RNASEQ {
     //
     // Quantification
     //
+    ch_counts_gene_length_scaled = channel.empty()
     if (params.aligner == 'star_rsem') {
 
         QUANTIFY_RSEM (
@@ -485,6 +486,7 @@ workflow RNASEQ {
             params.use_sentieon_star,
             params.skip_quantification_merge
         )
+        ch_counts_gene_length_scaled = QUANTIFY_RSEM.out.counts_gene_length_scaled
         ch_multiqc_files = ch_multiqc_files.mix(QUANTIFY_RSEM.out.stat)
         ch_mqc_per_sample_bundle = ch_mqc_per_sample_bundle
             .join(QUANTIFY_RSEM.out.stat.map { meta, f -> [meta.id, f] }, remainder: true)
@@ -517,6 +519,7 @@ workflow RNASEQ {
             params.kallisto_quant_fraglen_sd,
             params.skip_quantification_merge
         )
+        ch_counts_gene_length_scaled = QUANTIFY_BAM_SALMON.out.counts_gene_length_scaled
         if (!params.skip_qc && !params.skip_deseq2_qc && !params.skip_quantification_merge) {
             DESEQ2_QC_BAM_SALMON (
                 QUANTIFY_BAM_SALMON.out.counts_gene_length_scaled.map { _meta, counts -> counts },
@@ -911,6 +914,7 @@ workflow RNASEQ {
     map_status     = ch_map_status     // channel: [id, boolean]
     strand_status  = ch_strand_status  // channel: [id, boolean]
     multiqc_report = ch_multiqc_report // channel: /path/to/multiqc_report.html
+    counts_gene_length_scaled = ch_counts_gene_length_scaled // channel: [meta, /path/to/gene_counts_length_scaled.tsv]
 }
 
 /*
