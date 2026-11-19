@@ -178,8 +178,8 @@ workflow {
 
     main:
     if (params.run_da) {
-        if (!params.da_input || !params.da_contrasts || !params.da_gtf) {
-            error 'When --run_da is enabled, --da_input, --da_contrasts, and --da_gtf are required'
+        if (!params.da_contrasts || !params.da_gtf) {
+            error 'When --run_da is enabled, --da_contrasts, and --da_gtf are required'
         }
         if (params.skip_quantification_merge) {
             error 'DA requires merged gene counts; do not combine --run_da with --skip_quantification_merge'
@@ -215,12 +215,12 @@ workflow {
                     params: [
                         study_name: params.da_study_name,
                         study_type: 'rnaseq',
-                        input: file(params.da_input, checkIfExists: true),
+                        input: file(params.da_input?:params.input, checkIfExists: true),
                         matrix: counts,
                         contrasts: file(params.da_contrasts, checkIfExists: true),
                         outdir: "${params.outdir}/da",
                         gtf: file(params.da_gtf, checkIfExists: true),
-                        gene_sets_files: params.da_gene_sets ?: null, //can be comma-separated list, check later
+                        gene_sets_files: (params.da_gene_sets ?: null), //can be comma-separated list, check later
                         report_file: file(params.da_report, checkIfExists: true),
                         logo_file: file(params.da_logo, checkIfExists: true),
                         css_file: file(params.da_css, checkIfExists: true),
