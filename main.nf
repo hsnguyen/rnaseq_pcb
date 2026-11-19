@@ -292,7 +292,7 @@ workflow {
                         gprofiler2_max_qval: 0.05,
                         gprofiler2_domain_scope: 'annotated',
                         gprofiler2_min_diff: 1,
-                        gprofiler2_palette_name: 'Blues'
+                        gprofiler2_palette_name: 'Blues',
                         gprofiler2_token: null,
                         gprofiler2_organism: 'hsapiens',
                         gprofiler2_background_column: null,
