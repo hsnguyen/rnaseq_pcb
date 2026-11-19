@@ -301,13 +301,12 @@ workflow {
                         exploratory_assay_names: 'raw,variance_stabilised',
                         exploratory_final_assay: 'variance_stabilised',
                         exploratory_mad_threshold: -5,
-                        exploratory_log2_assays: 'raw,normalised'
+                        exploratory_log2_assays: 'raw,normalised',
                         reference: '',
                         target: '',
                         report_title: 'PCB RNASeq Report',
                         report_author: 'Son Nguyen',
                         report_description: 'Draft report for RNASeq analysis'
-
                 ]
             }
         RNASEQ_DA(ch_da_paramsets)
