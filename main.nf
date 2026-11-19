@@ -221,7 +221,7 @@ workflow {
                         outdir: "${params.outdir}/differentialabundance",
                         gtf: file(params.differentialabundance_gtf, checkIfExists: true),
                         features: params.differentialabundance_features ? file(params.differentialabundance_features, checkIfExists: true) : null,
-                        gene_sets_files: params.differentialabundance_gene_sets ? file(params.differentialabundance_gene_sets, checkIfExists: true) : null,
+                        gene_sets_files: params.differentialabundance_gene_sets ?: null, //can be comma-separated list, check later
                         report_file: file(params.differentialabundance_report, checkIfExists: true),
                         logo_file: file(params.differentialabundance_logo, checkIfExists: true),
                         css_file: file(params.differentialabundance_css, checkIfExists: true),
