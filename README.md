@@ -1,11 +1,11 @@
 ## Introduction
 
-This is a bioinformatics pipeline adapted from ***nf-core/rnaseq** and **nf-core/differentialabundance** that can be used to analyse RNA sequencing data at the [Perkins Cancer Biobank (PCB)](https://perkins.org.au/research/disease/cancer/cancer-biobank/) 
+This is a bioinformatics pipeline adapted from ***nf-core/rnaseq** and **nf-core/da** that can be used to analyse RNA sequencing data at the [Perkins Cancer Biobank (PCB)](https://perkins.org.au/research/disease/cancer/cancer-biobank/) 
 It takes a samplesheet with FASTQ files or pre-aligned BAM files as input, performs quality control (QC), trimming and (pseudo-)alignment, produces a gene expression matrix, QC report, and (TODO) downstream analyses such as differential expressions, gene enrichment analysis and extensive reports for RShiny App and Quarto notebook.
 
 <p align="center">
     <img title="RNASeq Workflow" src="docs/images/nf-core-rnaseq.png" width=70%> 
-    <img title="DEA Workflow" src="docs/images/nf-core-differentialabundance.png" width=70%>
+    <img title="DEA Workflow" src="docs/images/nf-core-da.png" width=70%>
 </p>
 
 
@@ -52,7 +52,7 @@ To see the results of an example test run with a full size dataset refer to the 
 For more details about the output files and reports, please refer to the
 [output documentation](https://nf-co.re/rnaseq/output).
 
-This pipeline quantifies RNA-sequenced reads relative to genes/transcripts in the genome and normalizes the resulting data. It does not compare the samples statistically in order to assign significance in the form of FDR or P-values. For downstream analyses, the output files from this pipeline can be analysed directly in statistical environments like [R](https://www.r-project.org/), [Julia](https://julialang.org/) or via the [nf-core/differentialabundance](https://github.com/nf-core/differentialabundance/) pipeline.
+This pipeline quantifies RNA-sequenced reads relative to genes/transcripts in the genome and normalizes the resulting data. It does not compare the samples statistically in order to assign significance in the form of FDR or P-values. For downstream analyses, the output files from this pipeline can be analysed directly in statistical environments like [R](https://www.r-project.org/), [Julia](https://julialang.org/) or via the [nf-core/da](https://github.com/nf-core/da/) pipeline.
 
 ## Credits
 

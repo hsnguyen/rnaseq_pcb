@@ -4,8 +4,8 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { prepareModuleInput     } from '../subworkflows/local/utils_nfcore_differentialabundance_pipeline/main'
-include { prepareModuleOutput    } from '../subworkflows/local/utils_nfcore_differentialabundance_pipeline/main'
+include { prepareModuleInput     } from '../subworkflows/local/utils_nfcore_da_pipeline/main'
+include { prepareModuleOutput    } from '../subworkflows/local/utils_nfcore_da_pipeline/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -17,7 +17,6 @@ include { prepareModuleOutput    } from '../subworkflows/local/utils_nfcore_diff
 // MODULE: Installed directly from nf-core/modules
 //
 include { GUNZIP as GUNZIP_GTF                              } from '../modules/nf-core/gunzip/main'
-include { UNTAR                                             } from '../modules/nf-core/untar/main.nf'
 include { SHINYNGS_APP                                      } from '../modules/nf-core/shinyngs/app/main'
 include { SHINYNGS_STATICEXPLORATORY as PLOT_EXPLORATORY    } from '../modules/nf-core/shinyngs/staticexploratory/main'
 include { SHINYNGS_STATICDIFFERENTIAL as PLOT_DIFFERENTIAL  } from '../modules/nf-core/shinyngs/staticdifferential/main'
@@ -25,19 +24,15 @@ include { SHINYNGS_VALIDATEFOMCOMPONENTS as VALIDATOR       } from '../modules/n
 include { CUSTOM_MATRIXFILTER                               } from '../modules/nf-core/custom/matrixfilter/main'
 include { ATLASGENEANNOTATIONMANIPULATION_GTF2FEATUREANNOTATION as GTF_TO_TABLE } from '../modules/nf-core/atlasgeneannotationmanipulation/gtf2featureannotation/main'
 include { QUARTONOTEBOOK                                    } from '../modules/nf-core/quartonotebook/main'
-include { AFFY_JUSTRMA as AFFY_JUSTRMA_RAW                  } from '../modules/nf-core/affy/justrma/main'
-include { AFFY_JUSTRMA as AFFY_JUSTRMA_NORM                 } from '../modules/nf-core/affy/justrma/main'
-include { PROTEUS_READPROTEINGROUPS as PROTEUS              } from '../modules/nf-core/proteus/readproteingroups/main'
-include { GEOQUERY_GETGEO                                   } from '../modules/nf-core/geoquery/getgeo/main'
 include { ZIP as MAKE_REPORT_BUNDLE                         } from '../modules/nf-core/zip/main'
 include { CSVTK_JOIN                                        } from '../modules/nf-core/csvtk/join/main'
 include { softwareVersionsToYAML                            } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 
 //
-// SUBWORKFLOW: Installed directly from nf-core/modules
+// SUBWORKFLOW: Installed from nf-core/subworkflows but then edited to keep DESeq2 only
 //
-include { ABUNDANCE_DIFFERENTIAL_FILTER                     } from '../subworkflows/nf-core/abundance_differential_filter/main'
-include { DIFFERENTIAL_FUNCTIONAL_ENRICHMENT                } from '../subworkflows/nf-core/differential_functional_enrichment/main'
+include { ABUNDANCE_DIFFERENTIAL_FILTER                     } from '../subworkflows/local/abundance_differential_filter/main'
+include { DIFFERENTIAL_FUNCTIONAL_ENRICHMENT                } from '../subworkflows/local/differential_functional_enrichment/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -45,7 +40,7 @@ include { DIFFERENTIAL_FUNCTIONAL_ENRICHMENT                } from '../subworkfl
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-workflow DIFFERENTIALABUNDANCE {
+workflow DA {
 
     take:
     ch_paramsets
@@ -64,52 +59,17 @@ workflow DIFFERENTIALABUNDANCE {
             [ meta, file(meta.params.input, checkIfExists: true) ]
         }
 
-    // Create input channels based on study type
-    ch_input = ch_samplesheet
-        .branch { meta, input ->
-            affy_array: meta.params.study_type == 'affy_array'
-            maxquant: meta.params.study_type == 'maxquant'
-            geo_soft_file: meta.params.study_type == 'geo_soft_file'
-            rnaseq: meta.params.study_type in ['rnaseq', 'generic_matrix']
-        }
+    // RNA-seq only: the matrix is produced by nf-core/rnaseq and the metadata
+    // sheet supplies sample identifiers and design variables.
+    ch_input = ch_samplesheet.map { meta, input ->
+        [meta, file(meta.params.matrix, checkIfExists: true)]
+    }
 
-    // Handle Affy array inputs
-    ch_celfiles = ch_input.affy_array
-        .map { meta, input ->
-            [ meta, file(meta.params.affy_cel_files_archive, checkIfExists: true) ]
-        }
-
-    // Handle Maxquant inputs
-    ch_maxquant_inputs = ch_input.maxquant
-        .map { meta, input ->
-            [ meta, input, file(meta.params.matrix, checkIfExists: true) ]
-        }
-
-    // Handle GEO soft file inputs
-    ch_querygse = ch_input.geo_soft_file
-        .map { meta, input ->
-            [ meta, meta.params.querygse ]
-        }
-
-    // Create optional parameter channels based on ch_paramsets
-    ch_transcript_lengths = ch_paramsets
-        .map { meta ->
-            [ meta, meta.params.feature_length_matrix ? file(meta.params.feature_length_matrix, checkIfExists: true) : [] ]
-        }
-
-    ch_control_features = ch_paramsets
-        .map { meta ->
-            [ meta, meta.params.control_features ? file(meta.params.control_features, checkIfExists: true) : [] ]
-        }
-
-    ch_gene_sets = ch_paramsets
-        .map { meta ->
-            if (meta.params.functional_method == 'decoupler') {
-                [ meta, [file(meta.params.decoupler_network, checkIfExists: true)] ]
-            } else {
-                [ meta, meta.params.gene_sets_files ? meta.params.gene_sets_files.split(",").collect { file(it, checkIfExists: true) } : [] ]
-            }
-        }
+    ch_transcript_lengths = ch_paramsets.map { meta -> [meta, []] }
+    ch_control_features = ch_paramsets.map { meta -> [meta, []] }
+    ch_gene_sets = ch_paramsets.map { meta ->
+        [meta, meta.params.gene_sets_files ? meta.params.gene_sets_files.split(',').collect { file(it, checkIfExists: true) } : []]
+    }
 
     // ========================================================================
     // Handle contrasts
@@ -140,7 +100,7 @@ workflow DIFFERENTIALABUNDANCE {
                 if (contrast.containsKey('formula')) {
                 return null
                 }
-                else if (contrast.containsKey('comparison')) { //  Necessary line for Maxquant to work. Check if it can be simplified to use contrast.id
+                else if (contrast.containsKey('comparison')) {
                     tuple(meta, contrast.comparison[0])
                 }
             }
@@ -158,278 +118,54 @@ workflow DIFFERENTIALABUNDANCE {
     ch_contrast_variables = ch_contrasts_variables_from_yml
         .mix(ch_contrasts_variables_from_other)
 
-    // ========================================================================
-    // Data type specific preprocessing
-    // ========================================================================
-
-    //
-    // 1. Deal with affy array data
-    // If we have affy array data in the form of CEL files we'll be deriving
-    // matrix and annotation from them
-    //
-
-    // Uncompress the CEL files archive
-    UNTAR ( prepareModuleInput(ch_celfiles, 'preprocessing') )
-    ch_untar_out = prepareModuleOutput(UNTAR.out.untar, ch_paramsets)
-
-    // Run affy
-
-    ch_affy_input = prepareModuleInput(ch_input.affy_array.join(ch_untar_out), 'preprocessing')
-
-    AFFY_JUSTRMA_RAW (
-        ch_affy_input,
-        [[],[]]
-    )
-    AFFY_JUSTRMA_NORM (
-        ch_affy_input,
-        [[],[]]
-    )
-
-    ch_affy_raw = prepareModuleOutput(AFFY_JUSTRMA_RAW.out.expression, ch_paramsets)
-    ch_affy_norm = prepareModuleOutput(AFFY_JUSTRMA_NORM.out.expression, ch_paramsets)
-    ch_affy_platform_features = prepareModuleOutput(AFFY_JUSTRMA_RAW.out.annotation, ch_paramsets)
-
-    //
-    // 2. Deal with maxquant data
-    // We'll be running Proteus once per unique contrast variable to generate plots
-    //
-
-    // Add contrast variable
-    ch_proteus_input = ch_maxquant_inputs
-        .combine(ch_contrast_variables, by:0)
-        .map { meta, input, matrix, contrast ->
-            def meta_new = meta + [contrast: contrast]
-            [meta_new, input, matrix]
-        }
-
-    // Run proteus to import protein abundances
-    PROTEUS( prepareModuleInput(ch_proteus_input, 'preprocessing') )
-
-    // Note that the tables are the same across contrasts, only one table will be necessary
-    // that is why here we take the first one and remove the contrast variable from meta
-    ch_proteus_raw = prepareModuleOutput(PROTEUS.out.raw_tab, ch_paramsets, ['contrast'])
-        .groupTuple()
-        .map { meta, files -> [ meta, files[0] ] }
-    ch_proteus_norm = prepareModuleOutput(PROTEUS.out.norm_tab, ch_paramsets, ['contrast'])
-        .groupTuple()
-        .map { meta, files -> [ meta, files[0] ] }
-
-    ch_proteus_plots = prepareModuleOutput(
-        PROTEUS.out.dendro_plot
-            .mix(PROTEUS.out.mean_var_plot)
-            .mix(PROTEUS.out.raw_dist_plot)
-            .mix(PROTEUS.out.norm_dist_plot)
-        , ch_paramsets // here we keep contrast, as the plots are different across contrasts, and we can use it for output folder naming later
-    )
-    ch_versions = ch_versions.mix(PROTEUS.out.versions)
-
-    //
-    // 3. Deal with GEO soft file data
-    // Run GEO query to get the annotation
-    //
-
-    GEOQUERY_GETGEO( prepareModuleInput(ch_querygse, 'preprocessing') )
-
-    ch_soft_norm = prepareModuleOutput(GEOQUERY_GETGEO.out.expression, ch_paramsets)
-    ch_soft_features = prepareModuleOutput(GEOQUERY_GETGEO.out.annotation, ch_paramsets)
-
-    ch_versions = ch_versions
-        .mix(GEOQUERY_GETGEO.out.versions)
-
-    // ========================================================================
-    // Parse channels for input matrices and features
-    // ========================================================================
-
-    //
-    // Define raw and normalised input expression/abundance data
-    //
-
-    // Raw inputs
-
-    ch_in_raw = ch_input.rnaseq
-        .map{meta, input -> [meta, file(meta.params.matrix, checkIfExists: true)]}
-        .mix(ch_affy_raw)
-        .mix(ch_proteus_raw)
-
-    // Normalised inputs
-
-    ch_in_norm = ch_affy_norm
-        .mix(ch_proteus_norm)
-        .mix(ch_soft_norm)
-
-    //
-    // Fetch or derive a feature annotation table
-    //
-
-    // Branch ch_paramsets based on feature source
-    ch_feature_sources = ch_paramsets
-        .branch {
-            user_features: it.params.features
-            affy_features: it.params.study_type == 'affy_array'
-            geo_features: it.params.study_type == 'geo_soft_file'
-            gtf_features: it.params.gtf
-            matrix_features: true
-        }
-
-    // Handle user-provided feature annotations
-    ch_user_features = ch_feature_sources.user_features
-        .map { meta -> [ meta, file(meta.params.features, checkIfExists: true) ] }
-
-    // Handle Affy array platform features
-    ch_affy_features = ch_feature_sources.affy_features
-        .join(ch_affy_platform_features)
-
-    // Handle GEO soft file features
-    ch_geo_features = ch_feature_sources.geo_features
-        .join(ch_soft_features)
-
-    // Handle GTF-based feature annotations
-    ch_gtf_files = ch_feature_sources.gtf_features
-        .map { meta -> [ meta, file(meta.params.gtf, checkIfExists: true) ] }
-
-    // Process GTF files if needed
-    ch_gtf_for_processing = ch_gtf_files
-        .branch {
-            compressed: it[1].name.endsWith('.gz')
-            uncompressed: !it[1].name.endsWith('.gz')
-        }
-
-    // Decompress GTF files if needed
-    GUNZIP_GTF( prepareModuleInput(ch_gtf_for_processing.compressed, 'preprocessing') )
-    ch_gunzip_out = prepareModuleOutput(GUNZIP_GTF.out.gunzip, ch_paramsets)
-
-    // Combine compressed and uncompressed GTF files
-    ch_gtf_processed = ch_gtf_for_processing.uncompressed
-        .mix(ch_gunzip_out)
-
-    // Convert GTF to feature annotation table
-    GTF_TO_TABLE(
-        prepareModuleInput(ch_gtf_processed, 'preprocessing'),
-        [tuple('id':""), []]
-    )
-    ch_gtf_features = prepareModuleOutput(GTF_TO_TABLE.out.feature_annotation, ch_paramsets)
-
-    // Extract features from matrix
-    // Note that in the case of maxquant we use the normalised matrix
-    // Whereas for other study types we use the raw matrix
-    ch_pre_matrix_features = ch_feature_sources.matrix_features.branch{ meta ->
-        maxquant: meta.params.study_type == 'maxquant'
-        other: true
+    // Derive feature metadata from the RNA-seq GTF.
+    ch_gtf_files = ch_paramsets.map { meta ->
+        [meta, file(meta.params.gtf, checkIfExists: true)]
     }
-    ch_matrix_features = ch_pre_matrix_features.maxquant.join(ch_in_norm)
-        .mix(ch_pre_matrix_features.other.join(ch_in_raw))
-        .map{ meta, matrix ->
-            def matrix_as_anno_filename = "${workflow.workDir}/${matrix.getBaseName()}_as_anno.${matrix.getExtension()}"
-            def matrix_copy = file(matrix_as_anno_filename)
-            if (!matrix_copy.exists() || matrix.size() != matrix_copy.size() || matrix.getText().md5() != matrix_copy.getText().md5()) {
-                matrix.copyTo(matrix_as_anno_filename)
-            }
-            [ meta, file(matrix_as_anno_filename) ]
-        }
-
-    // Combine all feature annotation channels
-    ch_features = ch_user_features
-        .mix(ch_affy_features)
-        .mix(ch_geo_features)
-        .mix(ch_gtf_features)
-        .mix(ch_matrix_features)
-
-    // ========================================================================
-    // Validate input
-    // ========================================================================
-
-    // Check compatibility of FOM elements and contrasts
-
-    ch_matrix_sources = ch_paramsets.branch{ meta ->
-        affy_or_maxquant: meta.params.study_type == 'affy_array' || meta.params.study_type == 'maxquant'
-        geo_soft_file: meta.params.study_type == 'geo_soft_file'
-        other: true
+    ch_gtf_for_processing = ch_gtf_files.branch {
+        compressed: it[1].name.endsWith('.gz')
+        uncompressed: !it[1].name.endsWith('.gz')
     }
+    GUNZIP_GTF(prepareModuleInput(ch_gtf_for_processing.compressed, 'preprocessing'))
+    ch_gtf_processed = ch_gtf_for_processing.uncompressed.mix(
+        prepareModuleOutput(GUNZIP_GTF.out.gunzip, ch_paramsets)
+    )
+    GTF_TO_TABLE(prepareModuleInput(ch_gtf_processed, 'preprocessing'), [tuple('id': ''), []])
+    ch_features = prepareModuleOutput(GTF_TO_TABLE.out.feature_annotation, ch_paramsets)
 
-    // Create a channel with the matrices for validation. For Affy and MaxQuant
-    // we have both raw and norm matrices, for GEO soft file we only have norm,
-    // for other we only have raw
-
-    ch_matrices_for_validation = ch_matrix_sources.affy_or_maxquant
-        .join(ch_in_raw)
-        .join(ch_in_norm)
-        .map{tuple(it[0], [it[1], it[2]])}
-        .mix(ch_matrix_sources.geo_soft_file.join(ch_in_norm))
-        .mix(ch_matrix_sources.other.join(ch_in_raw))
-
-    // Validate the components against one another. We try not to assume too
-    // much about chanel order, so we deploy the multiMap workaround.
-
+    // Validate the RNA-seq matrix, metadata, GTF-derived features, and contrasts.
     validator_input = ch_samplesheet
-        .join(ch_matrices_for_validation)
+        .join(ch_input)
         .join(ch_features)
         .join(ch_contrasts_file)
-
-    validator_input = prepareModuleInput(validator_input, 'preprocessing')
-        .multiMap{meta, samplesheet, matrices, features_file, contrasts_file ->
-            samplesheet_matrices: [meta, samplesheet, matrices]
-            features_file: [meta, features_file]
-            contrasts_file: [meta, contrasts_file]
+        .multiMap { meta, samplesheet, matrix, features, contrasts ->
+            samplesheet_matrices: [meta, samplesheet, [matrix]]
+            features_file: [meta, features]
+            contrasts_file: [meta, contrasts]
         }
-
     VALIDATOR(
-        validator_input.samplesheet_matrices,
-        validator_input.features_file,
-        validator_input.contrasts_file
+        prepareModuleInput(validator_input.samplesheet_matrices, 'preprocessing'),
+        prepareModuleInput(validator_input.features_file, 'preprocessing'),
+        prepareModuleInput(validator_input.contrasts_file, 'preprocessing')
     )
-
     ch_validated_assays = prepareModuleOutput(VALIDATOR.out.assays, ch_paramsets)
     ch_validated_contrast = prepareModuleOutput(VALIDATOR.out.contrasts, ch_paramsets)
     ch_validated_samplemeta = prepareModuleOutput(VALIDATOR.out.sample_meta, ch_paramsets)
     ch_validated_featuremeta = prepareModuleOutput(VALIDATOR.out.feature_meta, ch_paramsets)
+    ch_matrix_for_differential = ch_validated_assays
+        .map { meta, assays -> [meta, assays[0]] }
 
-    // For Affy, we've validated multiple input matrices for raw and norm,
-    // we'll separate them out again here
-
-    ch_multi_validated_assays = ch_validated_assays
-        .filter{meta, assays -> meta.params.study_type == 'affy_array' || meta.params.study_type == 'maxquant'}
-        .transpose()
-        .branch { meta, assay ->
-            raw: assay.name.contains('raw')
-            normalised: assay.name =~ /normali[sz]ed/
-            other: true
-        }
-
-    ch_multi_validated_assays.other
-        .map { meta, assay ->
-            error "Unexpected affy/maxquant assay name '${assay.name}' for paramset '${meta.paramset_name}'; expected 'raw' or 'normali[sz]ed' in name."
-        }
-
-    // Get raw matrices from the validation
-
-    ch_raw = ch_multi_validated_assays.raw
-        .mix(ch_validated_assays.filter{meta, assay -> meta.params.study_type in ['rnaseq', 'generic_matrix']})
-
-    // For RNASeq and GEO soft file we've validated a single matrix, raw in the
-    // case of RNASeq and norm in the case of GEO soft file, and these are the
-    // matrices we'll use for differential abundance testing. For affy or maxquant
-    // we'll use the normalised matrices.
-
-    ch_matrix_for_differential = ch_multi_validated_assays.normalised
-        .mix(ch_validated_assays.filter{meta, assay -> meta.params.study_type in ['rnaseq', 'generic_matrix'] || meta.params.study_type == 'geo_soft_file'})
-
-    // Split the contrasts up so we can run differential analyses and
-    // downstream plots separately.
-    // Replace NA strings that might have snuck into the blocking column
-
+    // Split the contrasts for differential analysis and plots.
     ch_contrasts = ch_validated_contrast
-        .splitCsv ( header:true, sep:'\t' )
-        .map{meta, contrast ->
-            contrast.blocking = contrast.blocking.replaceAll('^NA$', '')
-            if (!contrast.id){
-                contrast.id = contrast.values().join('_')
-            }
-            contrast.formula = contrast.formula?.trim() ? contrast.formula.trim() : null
-            contrast.make_contrasts_str = contrast.make_contrasts_str?.trim() ? contrast.make_contrasts_str.trim() : null
-
-            return [meta, contrast, contrast.variable, contrast.reference, contrast.target, contrast.formula, contrast.make_contrasts_str]
+        .splitCsv(header: true, sep: '\t')
+        .map { meta, contrast ->
+            contrast.blocking = contrast.blocking?.replaceAll('^NA$', '') ?: ''
+            contrast.id = contrast.id ?: contrast.values().join('_')
+            contrast.formula = contrast.formula?.trim() ?: null
+            contrast.make_contrasts_str = contrast.make_contrasts_str?.trim() ?: null
+            [meta, contrast, contrast.variable, contrast.reference, contrast.target, contrast.formula, contrast.make_contrasts_str]
         }
-        .groupTuple() // [meta, [contrast], [variable], [reference], [target], [formula], [comparison]]
+        .groupTuple()
 
     // ========================================================================
     // Filter matrix
@@ -466,7 +202,7 @@ workflow DIFFERENTIALABUNDANCE {
     // Use a multiMap to generate synched channels for differential analysis
     ch_differential_input = prepareModuleInput(ch_differential_input, 'differential')
         .multiMap{ meta, matrix, samplesheet, transcript_lengths, control_features, contrast, variable, reference, target, formula, comparison ->
-            input: [meta, matrix, meta.params.differential_method, meta.params.differential_min_fold_change, meta.params.differential_max_qval]
+            input: [meta, matrix, 'deseq2', meta.params.differential_min_fold_change, meta.params.differential_max_qval]
             samplesheet: [meta, samplesheet]
             transcript_lengths: [meta, transcript_lengths]
             control_features: [meta, control_features]
@@ -493,7 +229,6 @@ workflow DIFFERENTIALABUNDANCE {
     ch_differential_results = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.results_genewise, ch_paramsets, ['differential_method'], true) // key, meta, results
     ch_differential_results_filtered = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.results_genewise_filtered, ch_paramsets, ['differential_method'], true) // key, meta, results_filtered
     ch_differential_model = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.model, ch_paramsets, ['differential_method'], true) // key, meta, model
-    ch_differential_adjacency = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.adjacency, ch_paramsets, ['differential_method'], true) // key, meta, adjacency
 
     // Whereas these channels, the meta do not contain contrast info, as they come from the NORM modules instead of DIFFERENTIAL modules.
     // We do not need to define an extra key based on meta for later join/combine.
@@ -509,11 +244,6 @@ workflow DIFFERENTIALABUNDANCE {
 
     // Prepare input for annotation - combine differential results with feature metadata
     ch_annotation_input = ch_differential_results
-        .filter { tuple ->
-            def meta = tuple[0]
-            def study_type = meta?.params?.study_type
-            return study_type in ['rnaseq', 'generic_matrix'] || study_type == 'affy_array'
-        }
 
     ch_annotation_input
         .combine(ch_validated_featuremeta, by: 0) // Join by meta_key (first element)
@@ -527,23 +257,9 @@ workflow DIFFERENTIALABUNDANCE {
         prepareModuleInput(ch_final_annotation_input, 'differential')
     )
 
-    // Derive a channel of normalised matrices
-    // - from differential analysis for RNASeq
-    // - from normalisedvalidated assays for Affy and MaxQuant
-    // - from validated assays for GEO soft file
-
     ch_norm = ch_differential_norm
-        .filter{meta, matrix -> meta.params.study_type in ['rnaseq', 'generic_matrix']}
-        .mix(ch_multi_validated_assays.normalised)
-        .mix(ch_validated_assays.filter{meta, assay -> meta.params.study_type == 'geo_soft_file'})
-
-    // Prepare channel with normalized matrix, and variance stabilized matrices when available
-
     ch_processed_matrices = ch_norm.join(ch_differential_varstab, remainder: true)
-        .map { meta, norm, vs ->
-            def matrices = vs ? [norm, vs].flatten() : [norm]
-            [meta, matrices]
-        }
+        .map { meta, norm, vs -> [meta, vs ? [norm, vs].flatten() : [norm]] }
 
     // ========================================================================
     // Functional analysis
@@ -572,7 +288,6 @@ workflow DIFFERENTIALABUNDANCE {
     // - use normalized matrix, if method is gsea
     // - use filtered differential results, if method is gprofiler2
     // - use unfiltered differential results, if method is decoupler
-    // - use propd adjacency matrix, if method is grea
     ch_functional_analysis_matrices = ch_norm
         .filter{meta, matrix -> meta.params.functional_method == 'gsea'}
         .map{ meta, matrix -> [meta, meta, matrix]}
@@ -588,10 +303,7 @@ workflow DIFFERENTIALABUNDANCE {
                 // For decoupler, use unfiltered differential results
                 .filter{meta, meta_with_contrast, results -> meta.params.functional_method == 'decoupler'}
         )
-        .mix(
-            ch_differential_adjacency
-                .filter{meta, meta_with_contrast, adjacency -> meta.params.functional_method == 'grea'}
-        )
+
 
     ch_functional_input = ch_functional_analysis_matrices  // meta, meta with contrast, file
         .combine(ch_gene_sets, by:0)             // meta, [gmt files]
@@ -626,7 +338,7 @@ workflow DIFFERENTIALABUNDANCE {
         .join(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.gprofiler2_all_enrich, remainder: true)
         .join(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.gprofiler2_sub_enrich, remainder: true)
         .mix(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.gsea_report_tsv)
-        .mix(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.grea_results)
+
 
     // Note that 'functional_method' is additionally added to the meta in the functional subworkflow.
     // Remove it to keep a consistent meta structure (needed for join/combine).
@@ -643,26 +355,12 @@ workflow DIFFERENTIALABUNDANCE {
     // Plot figures
     // ========================================================================
 
-    // For geoquery we've done no matrix processing and been supplied with the
-    // normalised matrix, which can be passed through to downstream analysis
-
-    ch_mat = ch_norm.filter{meta, matrix -> meta.params.study_type == 'geo_soft_file'}
-        .map{meta, norm -> [meta, [norm]]}
-        .mix(
-            ch_raw
-                .filter{meta, raw -> meta.params.study_type != 'geo_soft_file'}
-                .join(ch_processed_matrices, remainder: true)
-                .map { meta, raw, matrices ->
-                def processed_matrices = matrices ?: []
-                    [meta, [raw] + processed_matrices]
-                }
-        )
-
-    ch_all_matrices = ch_validated_samplemeta                // meta, samples
-        .join(ch_validated_featuremeta)                      // meta, features
-        .join(ch_mat)                                        // meta, list of matrices (raw, norm, variance stabilized)
-        .map { meta, samples, features, matrices ->
-            return [meta, samples, features, matrices]
+    ch_all_matrices = ch_validated_samplemeta
+        .join(ch_validated_featuremeta)
+        .join(ch_norm)
+        .join(ch_differential_varstab, remainder: true)
+        .map { meta, samples, features, norm, vs ->
+            [meta, samples, features, vs ? [norm, vs].flatten() : [norm]]
         }
 
     // Exploratory analysis
@@ -825,7 +523,7 @@ workflow DIFFERENTIALABUNDANCE {
     softwareVersionsToYAML(ch_versions.mix(topic_versions.versions_file))
         .mix(topic_versions_string)
         .collectFile(
-            name: 'nf_core_'  +  'differentialabundance_software_'  + 'versions.yml',
+            name: 'nf_core_'  +  'da_software_'  + 'versions.yml',
             sort: true,
             newLine: true
         ).set { ch_nfcore_versions }
@@ -854,7 +552,7 @@ workflow DIFFERENTIALABUNDANCE {
     // So all the files generated with the same paramset meta will go together to report.
     // Note that the files generated with different contrasts will also be grouped together for the same paramset meta.
 
-    // Use remainder:true so methods that don't emit a model (e.g. propd) still
+    // Use remainder:true so optional report inputs still
     // flow through; grep() in the report-input map below drops the null entries.
     ch_differential_grouped = differential_with_contrast.differential_results.transpose()
         .join(ch_differential_model, by:[0,1], remainder: true)
@@ -931,28 +629,8 @@ workflow DIFFERENTIALABUNDANCE {
 
     emit:
 
-    // --- Preprocessing: Affy ---
-    affy_cel_files             = ch_untar_out
-    affy_raw_expression        = ch_affy_raw
-    affy_norm_expression       = ch_affy_norm
-    affy_annotation            = ch_affy_platform_features
-    affy_raw_rds               = prepareModuleOutput(AFFY_JUSTRMA_RAW.out.rds, ch_paramsets)
-
-    // --- Preprocessing: Proteus ---
-    proteus_raw                = ch_proteus_raw
-    proteus_norm               = ch_proteus_norm
-    proteus_plots              = ch_proteus_plots
-    proteus_raw_rdata          = prepareModuleOutput(PROTEUS.out.raw_rdata, ch_paramsets)
-    proteus_norm_rdata         = prepareModuleOutput(PROTEUS.out.norm_rdata, ch_paramsets)
-    proteus_session_info       = prepareModuleOutput(PROTEUS.out.session_info, ch_paramsets)
-
-    // --- Preprocessing: GEO ---
-    geo_expression             = ch_soft_norm
-    geo_annotation             = ch_soft_features
-    geo_rds                    = prepareModuleOutput(GEOQUERY_GETGEO.out.rds, ch_paramsets)
-
     // --- Preprocessing: GTF ---
-    gtf_annotation             = ch_gtf_features
+    gtf_annotation             = ch_features
 
     // --- Differential ---
     diff_results               = ch_differential_results

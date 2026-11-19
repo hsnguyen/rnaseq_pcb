@@ -7,7 +7,6 @@ include { CUSTOM_TABULARTOGSEAGCT  } from '../../../modules/nf-core/custom/tabul
 include { CUSTOM_TABULARTOGSEACLS  } from '../../../modules/nf-core/custom/tabulartogseacls/main.nf'
 include { CUSTOM_TABULARTOGSEACHIP } from '../../../modules/nf-core/custom/tabulartogseachip/main.nf'
 include { GSEA_GSEA                } from '../../../modules/nf-core/gsea/gsea/main.nf'
-include { PROPR_GREA               } from '../../../modules/nf-core/propr/grea/main.nf'
 include { DECOUPLER_DECOUPLER      } from '../../../modules/nf-core/decoupler/decoupler/main'
 
 // Combine meta maps, including merging non-identical values of shared keys (e.g. 'id')
@@ -135,26 +134,14 @@ workflow DIFFERENTIAL_FUNCTIONAL_ENRICHMENT {
     )
 
     // ----------------------------------------------------
-    // Perform enrichment analysis with GREA
-    // ----------------------------------------------------
-
-    PROPR_GREA(
-        ch_input_for_other.input.filter{ index -> index[0].functional_method == 'grea' },
-        ch_input_for_other.genesets.filter{ index -> index[0].functional_method == 'grea' }
-    )
-
-    // ----------------------------------------------------
     // collect generic outputs
     // ----------------------------------------------------
 
     ch_session_info = GPROFILER2_GOST.out.session_info
 
-    ch_versions = ch_versions
-        .mix(PROPR_GREA.out.versions)
-
     emit:
     // here we emit the outputs that will be useful afterwards in the
-    // nf-core/differentialabundance pipeline
+    // nf-core/da pipeline
 
     // gprofiler2-specific outputs
     gprofiler2_plot_html            = GPROFILER2_GOST.out.plot_html
@@ -190,9 +177,6 @@ workflow DIFFERENTIAL_FUNCTIONAL_ENRICHMENT {
     decoupler_dc_estimate           = DECOUPLER_DECOUPLER.out.dc_estimate
     decoupler_dc_pvals              = DECOUPLER_DECOUPLER.out.dc_pvals
     decoupler_png                   = DECOUPLER_DECOUPLER.out.png
-
-    // grea-specific outputs
-    grea_results                    = PROPR_GREA.out.results
 
     // tool versions
     session_info                    = ch_session_info

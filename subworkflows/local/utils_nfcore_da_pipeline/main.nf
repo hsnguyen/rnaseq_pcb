@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the nf-core/differentialabundance pipeline
+// Subworkflow with functionality specific to the nf-core/da pipeline
 //
 
 /*
@@ -60,14 +60,14 @@ workflow PIPELINE_INITIALISATION {
 \033[0;34m  |\\ | |__  __ /  ` /  \\ |__) |__         \033[0;33m}  {\033[0m
 \033[0;34m  | \\| |       \\__, \\__/ |  \\ |___     \033[0;32m\\`-._,-`-,\033[0m
                                         \033[0;32m`._,._,\'\033[0m
-\033[0;35m  nf-core/differentialabundance ${workflow.manifest.version}\033[0m
+\033[0;35m  nf-core/da ${workflow.manifest.version}\033[0m
 -\033[2m----------------------------------------------------\033[0m-
 """
     def after_text = """${workflow.manifest.doi ? "\n* The pipeline\n" : ""}${workflow.manifest.doi.tokenize(",").collect { doi -> "    https://doi.org/${doi.trim().replace('https://doi.org/','')}"}.join("\n")}${workflow.manifest.doi ? "\n" : ""}
 * The nf-core framework
     https://doi.org/10.1038/s41587-020-0439-x
 * Software dependencies
-    https://github.com/nf-core/differentialabundance/blob/master/CITATIONS.md
+    https://github.com/nf-core/da/blob/master/CITATIONS.md
 """
     if (monochrome_logs) {
         before_text = before_text.replaceAll('\\u001b\\[[0-9;]*m', '')
@@ -95,13 +95,10 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
-    // Get paramsets based on paramsheet or default parameters
-    //
-    def configurations = params.paramsheet
-        ? getParamsheetConfigurations()
-        : getDefaultConfigurations()
-    paramsets = validateConfigurations(configurations)
-        .collect { paramset -> addDifferentialRuntimeParams(paramset) }
+    // The integrated workflow runs one RNA-seq/DESeq2 analysis per invocation.
+    paramsets = validateConfigurations([params + [
+        paramset_name: params.paramset_name ?: 'rnaseq'
+    ]])
     ch_paramsets = Channel.fromList(paramsets)
         .map { paramset -> [
             id: paramset.study_name,
@@ -168,50 +165,6 @@ workflow PIPELINE_COMPLETION {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 //
-// Per-method DISPLAY columns stamped into meta.params at paramset-parse
-// time, used downstream by report.qmd, shinyngs and the output DSL.
-// FILTER columns are owned separately by the abundance_differential_filter
-// subworkflow's getDifferentialMethodParams (deliberately different for
-// propd: `significant` is the filter column, `rcDdis` is the display score).
-def getDifferentialMethodRuntimeParams(differential_method) {
-    def runtime_params = [
-        'deseq2': [
-            differential_fc_column         : 'log2FoldChange',
-            differential_pval_column       : 'pvalue',
-            differential_qval_column       : 'padj',
-            differential_foldchanges_logged: true
-        ],
-        'limma' : [
-            differential_fc_column         : 'logFC',
-            differential_pval_column       : 'P.Value',
-            differential_qval_column       : 'adj.P.Val',
-            differential_foldchanges_logged: true
-        ],
-        'propd' : [
-            differential_fc_column         : 'LFC',
-            differential_pval_column       : 'rcDdis',
-            differential_qval_column       : 'rcDdis',
-            differential_foldchanges_logged: true
-        ],
-        'dream' : [
-            differential_fc_column         : 'logFC',
-            differential_pval_column       : 'P.Value',
-            differential_qval_column       : 'adj.P.Val',
-            differential_foldchanges_logged: true
-        ]
-    ][differential_method]
-
-    runtime_params ?: [:]
-}
-
-def addDifferentialRuntimeParams(paramset) {
-    def runtime_params = getDifferentialMethodRuntimeParams(paramset.differential_method)
-    def missing_runtime_params = runtime_params.findAll { key, _value ->
-        !paramset.containsKey(key)
-    }
-    paramset + missing_runtime_params
-}
-
 // Check and validate pipeline parameters
 //
 def validateInputParameters(paramsets) {
@@ -226,26 +179,8 @@ def validateInputParameters(paramsets) {
             file(row.input, checkIfExists: true)
         }
 
-        // Validate study type spepecific parameters
-        if (row.study_type == 'affy_array') {
-            if (!row.affy_cel_files_archive) {
-                error("CEL files archive not specified for paramset={${row.paramset_name}}!")
-            }
-        } else if (row.study_type == 'maxquant') {
-            if (row.functional_method && row.functional_method != 'none') {
-                error("Functional analysis is not yet possible with maxquant input data; please set --functional_method to 'none' and rerun pipeline!")
-            }
-            if (!row.matrix) {
-                error("Input matrix not specified for paramset={${row.paramset_name}}!")
-            }
-        } else if (row.study_type == 'geo_soft_file') {
-            if (!row.querygse || !row.features_metadata_cols) {
-                error("Query GSE not specified or features metadata columns not specified for paramset={${row.paramset_name}}")
-            }
-        } else if (row.study_type in ["rnaseq", "generic_matrix"]) {
-            if (!row.matrix) {
-                error("Input matrix not specified for paramset={${row.paramset_name}}!")
-            }
+        if (row.study_type == 'rnaseq' && !row.matrix) {
+            error("RNA-seq count matrix must be specified for paramset={${row.paramset_name}}!")
         }
 
         // Validate functional analysis parameters
@@ -270,19 +205,6 @@ def validateInputParameters(paramsets) {
                 if (!row.decoupler_network) {
                         error("To run decoupler, please provide a network file!")
                     }
-            } else if (row.functional_method == 'grea') {
-                if (row.differential_method != 'propd') {
-                    error("'--functional_method grea' is only supported with '--differential_method propd' (grea consumes the adjacency matrix produced by propd). Found differential_method='${row.differential_method}' in paramset='${row.paramset_name}'.")
-                }
-                if (!row.gene_sets_files) {
-                    error("grea activated but gene set file not specified for paramset={${row.paramset_name}}!")
-                }
-                if (row.gene_sets_files.split(",").size() > 1) {
-                    error("grea can currently only work with a single gene set file")
-                }
-                if (!row.propd_save_adjacency) {
-                    error("'--functional_method grea' requires '--propd_save_adjacency true' so the propd adjacency matrix is persisted for grea to consume. Found propd_save_adjacency='${row.propd_save_adjacency}' in paramset='${row.paramset_name}'.")
-                }
             }
         }
 
@@ -291,13 +213,8 @@ def validateInputParameters(paramsets) {
             error("'--contrasts' must be set. Please provide a contrasts file in CSV, TSV, YML, or YAML format.")
         }
 
-        // Validate control-based size factor parameters
-        if (row.sizefactors_from_controls && row.differential_method != 'deseq2') {
-            error("'--sizefactors_from_controls' is only supported with '--differential_method deseq2'. Found differential_method='${row.differential_method}' in paramset='${row.paramset_name}'.")
-        }
-
-        if (row.control_features && !row.sizefactors_from_controls && row.differential_method != 'deseq2') {
-            log.warn("'--control_features' with '${row.differential_method}' will only strip control features from matrices. Normalization from controls is only supported with '--differential_method deseq2'.")
+        if (row.differential_method && row.differential_method != 'deseq2') {
+            error("Only DESeq2 is supported for RNA-seq differential analysis.")
         }
     }
 }
@@ -426,119 +343,12 @@ def validateConfigurations(configurations) {
             validate(notnullparams, "${projectDir}/nextflow_schema.json")
         } catch (e) {
             // Surface the paramset name; nf-schema will then produce a detailed error.
-            log.error "Validation failed for paramsheet row: ${paramset.paramset_name}"
+            log.error "Validation failed for paramset: ${paramset.paramset_name}"
             validate(notnullparams, "${projectDir}/nextflow_schema.json")
         }
 
         return cleanparamset
     }
-}
-
-// Get configurations from paramsheet
-def getParamsheetConfigurations() {
-    // Get paramsheet path
-    def paramsheet_path = file(params.paramsheet, checkIfExists: true)
-
-    // Load configs from paramsheet as list of maps
-    def raw_paramsheet = loadYamlConfigs(paramsheet_path)
-
-    def paramsheet = raw_paramsheet
-        .findAll { row ->
-            if (!params.paramset_name || params.paramset_name == 'all') {
-                return true
-            } else {
-                // Only keep row matching with paramset name(s)
-                return row.paramset_name in params.paramset_name.tokenize(',')
-            }
-        }
-
-    if (paramsheet.isEmpty()) {
-        if (params.paramset_name) {
-            error("No configuration found in paramsheet for paramset_name '${params.paramset_name}'")
-        } else {
-            error("No valid configurations found in paramsheet")
-        }
-    }
-
-    return paramsheet
-        .collect{ row ->
-            // Note that the paramsheet may not contain all the parameters
-            // defined in the pipeline, so we need to merge them
-            def fullparamset = params + row
-            return fullparamset
-        }
-}
-
-// Get default configurations from pipeline parameters (profile mode)
-def getDefaultConfigurations() {
-    // Use paramset_name from profile if set, otherwise fall back to 'contrasts'
-    def pname = params.paramset_name ?: 'contrasts'
-    return [params + [paramset_name: pname]]
-}
-
-// Load configurations from yaml file
-def loadYamlConfigs(yaml_path) {
-    // Load yaml content
-    def configs = loadYaml(yaml_path)
-
-    // Resolve includes for each config
-    configs = configs.collect { config ->
-        config = resolveIncludes(config)
-        config.remove('include')
-        return config
-    }
-
-    return configs
-}
-def loadYaml(yaml_path) {
-    // Load yaml content
-    def yaml_content = yaml_path.text
-
-    // Substitute ${projectDir} with actual value
-    // alternative ways? This can be fragile
-    yaml_content = yaml_content.replaceAll('\\$\\{projectDir\\}', projectDir.toString())
-    yaml_content = yaml_content.replaceAll('\\$projectDir', projectDir.toString())
-
-    // Parse yaml content
-    def yaml_parser = new org.yaml.snakeyaml.Yaml()
-    def loaded = yaml_parser.load(yaml_content)
-    def configs = (loaded instanceof List) ? loaded : [loaded]
-
-    return configs
-}
-// Helper function to resolve includes recursively
-def resolveIncludes(config) {
-    def yaml_parser = new org.yaml.snakeyaml.Yaml()
-
-    if (config.containsKey('include')) {
-        def includePaths = config.include.split(',') // Split by comma to handle multiple includes
-        includePaths.each { includePath ->
-            def includeParts = includePath.split('/')
-            def includeFile = includeParts[0]
-            def paramsetName = includeParts[1]
-
-            // Load the included YAML file
-            def includeFilePath = file("${projectDir}/conf/${includeFile}.yaml")
-            if (!includeFilePath.exists()) {
-                error("Included file '${includeFilePath}' not found.")
-            }
-            def includeConfigs = loadYaml(includeFilePath)
-
-            // Find the paramset with the given name
-            def includedConfig = includeConfigs.find { it.paramset_name == paramsetName }
-            if (!includedConfig) {
-                error("Paramset '${paramsetName}' not found in included file '${includeFilePath}'.")
-            }
-
-            // Recursively resolve includes in the included config
-            includedConfig = resolveIncludes(includedConfig)
-
-            // Merge configs
-            includedConfig.putAll(config)
-            config = includedConfig
-        }
-    }
-    return config
 }
 
 // prepare the input for the module by keeping only the relevant params

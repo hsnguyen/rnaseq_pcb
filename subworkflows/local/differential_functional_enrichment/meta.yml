@@ -9,7 +9,6 @@ components:
   - gprofiler2/gost
   - gsea/gsea
   - decoupler/decoupler
-  - propr/grea
   - custom/tabulartogseagct
   - custom/tabulartogseacls
   - custom/tabulartogseachip
@@ -36,7 +35,7 @@ input:
               For the moment, it is only required for gprofiler2.
         - analysis_method:
             type: value
-            description: Analysis method (gprofiler2, gsea, decoupler or grea)
+            description: Analysis method (gprofiler2, gsea, or decoupler)
   - ch_contrasts:
       description: Channel with contrast information
       structure:
@@ -212,16 +211,6 @@ output:
               Files containing the plots associated to the estimation
               results of the enrichment(s)
             pattern: "*estimate_decoupler_plot.png"
-  - grea_results:
-      description: Channel containing the output from GREA.
-      structure:
-        - meta:
-            type: map
-            description: Metadata map
-        - results:
-            type: file
-            description: Main TSV results file.
-            pattern: "*.grea.tsv"
 authors:
   - "@suzannejin"
   - "@bjlang"

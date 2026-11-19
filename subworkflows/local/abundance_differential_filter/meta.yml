@@ -8,11 +8,8 @@ keywords:
   - count matrix
   - fold-change
 components:
-  - limma/differential
   - deseq2/differential
-  - propr/propd
   - custom/filterdifferentialtable
-  - variancepartition/dream
 input:
   - ch_input:
       description: Channel with input data for differential analysis
@@ -25,16 +22,13 @@ input:
             description: Count matrix file
         - analysis_method:
             type: value
-            description: Analysis method (deseq2, limma, or propd)
+            description: Differential analysis method; fixed to DESeq2
         - fc_threshold:
             type: value
             description: Fold change threshold for filtering
         - stat_threshold:
             type: value
-            description: |
-              Threshold for filtering the significance statistics
-              (eg. adjusted p-values in the case of deseq2 or limma,
-              weighted connectivity in the case of propd)
+            description: Adjusted p-value threshold for DESeq2 filtering
   - ch_samplesheet:
       description: Channel with sample information
       structure:

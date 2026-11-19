@@ -6,7 +6,7 @@ format:
         toc: true
         toc-location: left
         toc-depth: 4
-        toc-image: nf-core-differentialabundance_logo_light.png
+        toc-image: nf-core-da_logo_light.png
         theme: default
         number-sections: false
         df-print: paged
@@ -673,40 +673,15 @@ render_outlier_detection <- function() {
 # ---- Section: differential method description -----------------------------
 
 render_method_description <- function() {
-    cat(switch(
-        p$differential_method,
-        "deseq2" = paste0(
-            "The `DESeq2 R` package was used for differential analysis. p-values were adjusted with the ",
-            p$deseq2_p_adjust_method, " method to reduce the number of false positives. ",
-            ucfirst(p$features_type),
-            "s were considered differential if, for the respective contrast, the adjusted p-value was equal to or lower than ",
-            p$deseq2_alpha, " and the absolute log2 fold change was equal to or higher than ",
-            p$deseq2_lfc_threshold, "."
-        ),
-        "limma" = paste0(
-            "The `limma R` package",
-            ifelse(isTRUE(p$limma_use_voom), " with `voom` transformation", ""),
-            " was used for differential analysis. p-values were adjusted with the ",
-            p$limma_adjust_method, " method to reduce the number of false positives. ",
-            ucfirst(p$features_type),
-            "s were considered differential if, for the respective contrast, the adjusted p-value was equal to or lower than ",
-            p$limma_p_value, " and the absolute log2 fold change was equal to or higher than ",
-            p$limma_lfc, "."
-        ),
-        "dream" = paste0(
-            "The `variancePartition` `dream` workflow",
-            ifelse(isTRUE(p$dream_apply_voom), " with `voom` transformation", ""),
-            " was used for differential analysis. p-values were adjusted with the ",
-            p$dream_adjust_method, " method to reduce the number of false positives. ",
-            ucfirst(p$features_type),
-            "s were considered differential if, for the respective contrast, the adjusted p-value was equal to or lower than ",
-            p$dream_p_value, " and the absolute log2 fold change was equal to or higher than ",
-            p$dream_lfc, "."
-        ),
-        paste0("The `", p$differential_method, "` method was used for differential analysis.")
+    cat(paste0(
+        "The `DESeq2 R` package was used for differential analysis. p-values were adjusted with the ",
+        p$deseq2_p_adjust_method, " method to reduce the number of false positives. ",
+        ucfirst(p$features_type),
+        "s were considered differential if, for the respective contrast, the adjusted p-value was equal to or lower than ",
+        p$deseq2_alpha, " and the absolute log2 fold change was equal to or higher than ",
+        p$deseq2_lfc_threshold, "."
     ))
 }
-
 
 # ---- Section: DE count tables (Adjusted / Unadjusted tabset) --------------
 
@@ -1103,8 +1078,8 @@ report_title <- paste0(
 )
 report_subtitle <- paste0(
     ifelse(is.null(p$report_author), "", paste0("By ", p$report_author, ", ")),
-    "<br>differentialabundance workflow version",
-    versions[["Workflow.nf-core/differentialabundance"]]
+    "<br>da workflow version",
+    versions[["Workflow.nf-core/da"]]
 )
 ```
 
@@ -1345,7 +1320,7 @@ differential_tables <- map(sig_differential, \(per_contrast) {
 
 # Abstract
 
-This report summarises differential `{r} p$features_type` analysis as performed by the nf-core/differentialabundance pipeline.
+This report summarises differential `{r} p$features_type` analysis as performed by the nf-core/da pipeline.
 
 # Data
 
@@ -1542,10 +1517,7 @@ if (!is.null(p$functional_method)) {
 
 # Methods
 
-```{r maxquant-import-params, echo=FALSE, results='asis', eval=p$study_type == 'maxquant'}
-cat(paste0("\n## Protein abundance import\n"))
-make_params_table("importing maxquant output", "proteus_", remove_pattern = TRUE)
-```
+
 
 ## Filtering
 

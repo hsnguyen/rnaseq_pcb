@@ -47,7 +47,7 @@ include { PIPELINE_COMPLETION        } from './subworkflows/local/utils_nfcore_r
 include { checkMaxContigSize         } from './subworkflows/local/utils_nfcore_rnaseq_pipeline'
 include { defineQcTools              } from './subworkflows/local/utils_nfcore_rnaseq_pipeline'
 include { isStarIndexLegacy          } from './subworkflows/local/utils_nfcore_rnaseq_pipeline'
-include { RNASEQ_DIFFERENTIALABUNDANCE } from './subworkflows/local/differentialabundance'
+include { RNASEQ_DA } from './subworkflows/local/da'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -177,12 +177,12 @@ workflow NFCORE_RNASEQ {
 workflow {
 
     main:
-    if (params.run_differentialabundance) {
-        if (!params.differentialabundance_contrasts || !params.differentialabundance_gtf) {
-            error 'When --run_differentialabundance is enabled, --differentialabundance_contrasts, and --differentialabundance_gtf are required'
+    if (params.run_da) {
+        if (!params.da_input || !params.da_contrasts || !params.da_gtf) {
+            error 'When --run_da is enabled, --da_input, --da_contrasts, and --da_gtf are required'
         }
         if (params.skip_quantification_merge) {
-            error 'Differentialabundance requires merged gene counts; do not combine --run_differentialabundance with --skip_quantification_merge'
+            error 'DA requires merged gene counts; do not combine --run_da with --skip_quantification_merge'
         }
     }
 
@@ -206,34 +206,37 @@ workflow {
     //
     NFCORE_RNASEQ ()
 
-    if (params.run_differentialabundance) {
+    if (params.run_da) {
         ch_da_paramsets = NFCORE_RNASEQ.out.counts_gene_length_scaled
             .map { _meta, counts ->
                 [
-                    id: params.differentialabundance_study_name,
-                    paramset_name: params.differentialabundance_study_name,
+                    id: params.da_study_name,
+                    paramset_name: params.da_study_name,
                     params: [
-                        study_name: params.differentialabundance_study_name,
+                        study_name: params.da_study_name,
                         study_type: 'rnaseq',
-                        input: file(params.differentialabundance_input?:params.input, checkIfExists: true), //if not provided try the input from rnaseq pipeline
+                        input: file(params.da_input, checkIfExists: true),
                         matrix: counts,
-                        contrasts: file(params.differentialabundance_contrasts, checkIfExists: true),
-                        outdir: "${params.outdir}/differentialabundance",
-                        gtf: file(params.differentialabundance_gtf, checkIfExists: true),
-                        features: params.differentialabundance_features ? file(params.differentialabundance_features, checkIfExists: true) : null,
-                        gene_sets_files: params.differentialabundance_gene_sets ?: null, //can be comma-separated list, check later
-                        report_file: file(params.differentialabundance_report, checkIfExists: true),
-                        logo_file: file(params.differentialabundance_logo, checkIfExists: true),
-                        css_file: file(params.differentialabundance_css, checkIfExists: true),
-                        citations_file: file(params.differentialabundance_citations, checkIfExists: true),
-                        shinyngs_build_app: params.differentialabundance_shinyngs_build_app,
-                        shinyngs_deploy_to_shinyapps_io: params.differentialabundance_shinyngs_deploy_to_shinyapps_io,
-                        shinyngs_shinyapps_account: params.differentialabundance_shinyngs_shinyapps_account,
-                        shinyngs_shinyapps_app_name: params.differentialabundance_shinyngs_shinyapps_app_name,
-                        functional_method: params.differentialabundance_functional_method,
-                        features_id_col: params.differentialabundance_features_id_col,
-                        features_name_col: params.differentialabundance_features_name_col,
-                        observations_id_col: params.differentialabundance_observations_id_col,
+                        contrasts: file(params.da_contrasts, checkIfExists: true),
+                        outdir: "${params.outdir}/da",
+                        gtf: file(params.da_gtf, checkIfExists: true),
+                        gene_sets_files: params.da_gene_sets ?: null, //can be comma-separated list, check later
+                        report_file: file(params.da_report, checkIfExists: true),
+                        logo_file: file(params.da_logo, checkIfExists: true),
+                        css_file: file(params.da_css, checkIfExists: true),
+                        citations_file: file(params.da_citations, checkIfExists: true),
+                        shinyngs_build_app: params.da_shinyngs_build_app,
+                        shinyngs_deploy_to_shinyapps_io: params.da_shinyngs_deploy_to_shinyapps_io,
+                        shinyngs_shinyapps_account: params.da_shinyngs_shinyapps_account,
+                        shinyngs_shinyapps_app_name: params.da_shinyngs_shinyapps_app_name,
+                        functional_method: params.da_functional_method,
+                        features_id_col: params.da_features_id_col,
+                        features_name_col: params.da_features_name_col,
+                        observations_id_col: params.da_observations_id_col,
+                        differential_fc_column: 'log2FoldChange',
+                        differential_pval_column: 'pvalue',
+                        differential_qval_column: 'padj',
+                        differential_foldchanges_logged: true,
                         observations_type: 'sample',
                         exploratory_assay_names: 'raw,variance_stabilised',
                         exploratory_final_assay: 'variance_stabilised',
@@ -242,7 +245,7 @@ workflow {
                     ]
                 ]
             }
-        RNASEQ_DIFFERENTIALABUNDANCE(ch_da_paramsets)
+        RNASEQ_DA(ch_da_paramsets)
     }
 
     //

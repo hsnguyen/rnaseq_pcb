@@ -1,4 +1,4 @@
-name: differentialabundance-report
+name: da-report
 channels:
   - conda-forge
   - bioconda
