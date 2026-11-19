@@ -307,6 +307,7 @@ workflow {
                         report_title: 'PCB RNASeq Report',
                         report_author: 'Son Nguyen',
                         report_description: 'Draft report for RNASeq analysis'
+                    ]
                 ]
             }
         RNASEQ_DA(ch_da_paramsets)
