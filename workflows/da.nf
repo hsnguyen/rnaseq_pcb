@@ -126,11 +126,11 @@ workflow DA {
         compressed: it[1].name.endsWith('.gz')
         uncompressed: !it[1].name.endsWith('.gz')
     }
-    GUNZIP_GTF(prepareModuleInput(ch_gtf_for_processing.compressed, 'differentialabundance'))
+    GUNZIP_GTF(prepareModuleInput(ch_gtf_for_processing.compressed, 'da_preprocessing'))
     ch_gtf_processed = ch_gtf_for_processing.uncompressed.mix(
         prepareModuleOutput(GUNZIP_GTF.out.gunzip, ch_paramsets)
     )
-    GTF_TO_TABLE(prepareModuleInput(ch_gtf_processed, 'differentialabundance'), [tuple('id': ''), []])
+    GTF_TO_TABLE(prepareModuleInput(ch_gtf_processed, 'da_preprocessing'), [tuple('id': ''), []])
     ch_features = prepareModuleOutput(GTF_TO_TABLE.out.feature_annotation, ch_paramsets)
 
     // Validate the RNA-seq matrix, metadata, GTF-derived features, and contrasts.
@@ -144,9 +144,9 @@ workflow DA {
             contrasts_file: [meta, contrasts]
         }
     VALIDATOR(
-        prepareModuleInput(validator_input.samplesheet_matrices, 'differentialabundance'),
-        prepareModuleInput(validator_input.features_file, 'differentialabundance'),
-        prepareModuleInput(validator_input.contrasts_file, 'differentialabundance')
+        prepareModuleInput(validator_input.samplesheet_matrices, 'da_preprocessing'),
+        prepareModuleInput(validator_input.features_file, 'da_preprocessing'),
+        prepareModuleInput(validator_input.contrasts_file, 'da_preprocessing')
     )
     ch_validated_assays = prepareModuleOutput(VALIDATOR.out.assays, ch_paramsets)
     ch_validated_contrast = prepareModuleOutput(VALIDATOR.out.contrasts, ch_paramsets)
@@ -174,7 +174,7 @@ workflow DA {
     ch_matrixfilter_input = ch_matrix_for_differential
         .join(ch_validated_samplemeta)
 
-    ch_matrixfilter_input = prepareModuleInput(ch_matrixfilter_input, 'differentialabundance')
+    ch_matrixfilter_input = prepareModuleInput(ch_matrixfilter_input, 'da_preprocessing')
         .multiMap{meta, matrix, samplesheet ->
             matrix: [meta, matrix]
             samplesheet: [meta, samplesheet]
@@ -200,7 +200,7 @@ workflow DA {
         .join(ch_contrasts)
 
     // Use a multiMap to generate synched channels for differential analysis
-    ch_differential_input = prepareModuleInput(ch_differential_input, 'differentialabundance')
+    ch_differential_input = prepareModuleInput(ch_differential_input, 'da_differential')
         .multiMap{ meta, matrix, samplesheet, transcript_lengths, control_features, contrast, variable, reference, target, formula, comparison ->
             input: [meta, matrix, 'deseq2', meta.params.differential_min_fold_change, meta.params.differential_max_qval]
             samplesheet: [meta, samplesheet]
@@ -254,7 +254,7 @@ workflow DA {
         .set { ch_final_annotation_input }
 
     CSVTK_JOIN(
-        prepareModuleInput(ch_final_annotation_input, 'differentialabundance')
+        prepareModuleInput(ch_final_annotation_input, 'da_differential')
     )
 
     ch_norm = ch_differential_norm
@@ -315,7 +315,7 @@ workflow DA {
                         // the remaining meta will contain the contrast info, if any
 
     // Use a multiMap to generate synched channels for functional enrichment analysis
-    ch_functional_input = prepareModuleInput(ch_functional_input, 'differentialabundance')
+    ch_functional_input = prepareModuleInput(ch_functional_input, 'da_functional')
         .multiMap{ meta, input, gene_sets, background, contrasts, variable, reference, target, formula, comparison, samplesheet, features ->
             input: [meta, input, gene_sets, background, meta.params.functional_method]
             contrasts: [meta, contrasts, variable, reference, target, formula, comparison]
@@ -375,7 +375,7 @@ workflow DA {
         }
 
     PLOT_EXPLORATORY(
-        prepareModuleInput(ch_exploratory_input, 'differentialabundance')
+        prepareModuleInput(ch_exploratory_input, 'da_exploratory')
     )
 
     // Plot differential analysis results
@@ -385,7 +385,7 @@ workflow DA {
         .map{it.tail()}  // remove the meta without contrast info that is used as key
                         // the remaining meta will contain the contrast info
 
-    ch_plot_differential_input = prepareModuleInput(ch_plot_differential_input, 'differentialabundance')
+    ch_plot_differential_input = prepareModuleInput(ch_plot_differential_input, 'da_differential')
         .multiMap{ meta, differential_results, samples, features, matrices ->
             differential_results: [meta, differential_results]
             samples_features_matrices: [meta, samples, features, matrices]

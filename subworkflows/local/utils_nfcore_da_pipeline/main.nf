@@ -436,13 +436,12 @@ def getRelevantParams(paramset, category) {
 
     // the relevant groups are the one defined by the category
     // and all the preceding ones
-    //def relevant_categories = [
-    //    'preprocessing': ['base', 'preprocessing'],
-    //    'exploratory': ['base', 'preprocessing', 'exploratory'],
-    //    'differential': ['base', 'preprocessing', 'differential'],
-    //    'functional': ['base', 'preprocessing', 'differential', 'functional']
-    //]
-    def relevant_categories = [ 'differentialabundance' : 'differentialabundance' ]
+    def relevant_categories = [
+        'da_preprocessing': ['base', 'preprocessing'],
+        'da_exploratory': ['base', 'preprocessing', 'exploratory'],
+        'da_differential': ['base', 'preprocessing', 'differential'],
+        'da_functional': ['base', 'preprocessing', 'differential', 'functional']
+    ]
     if (!relevant_categories.containsKey(category)) {
         error("Category '${category}' not found in schema.")
     }

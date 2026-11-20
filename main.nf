@@ -214,18 +214,19 @@ workflow {
                     paramset_name: params.da_study_name,
                     params: [
                         study_name: params.da_study_name,
-                        study_type: 'rnaseq',
+                        study_type: params.da_study_type,
                         input: params.da_input?file(params.da_input, checkIfExists: true):file(params.input, checkIfExists: true),
                         matrix: counts,
                         contrasts: file(params.da_contrasts, checkIfExists: true),
-                        //round_digits: 3, 
+                        round_digits: da_round_digits,
+                        seed: da_seed, 
                         outdir: "${params.outdir}/da",
                         gtf: params.da_gtf?file(params.da_gtf, checkIfExists: true):(params.gtf?file(params.gtf, checkIfExists: true):null),
                         gene_sets_files: (params.da_gene_sets ?: null), //can be comma-separated list, check later
-                        report_file: file(params.da_report, checkIfExists: true),
-                        logo_file: file(params.da_logo, checkIfExists: true),
-                        css_file: file(params.da_css, checkIfExists: true),
-                        citations_file: file(params.da_citations, checkIfExists: true),
+                        report_file: file(params.da_report_file, checkIfExists: true),
+                        logo_file: file(params.da_logo_file, checkIfExists: true),
+                        css_file: file(params.da_css_file, checkIfExists: true),
+                        citations_file: file(params.da_citations_file, checkIfExists: true),
                         shinyngs_build_app: params.da_shinyngs_build_app,
                         shinyngs_deploy_to_shinyapps_io: params.da_shinyngs_deploy_to_shinyapps_io,
                         shinyngs_shinyapps_account: params.da_shinyngs_shinyapps_account,
@@ -315,9 +316,9 @@ workflow {
                         grea_set_min: params.da_grea_set_min,
                         grea_set_max: params.da_grea_set_max,
                         grea_permutation: params.da_grea_permutation,                        
-                        report_title: 'PCB RNASeq Report',
-                        report_author: 'Son Nguyen',
-                        report_description: 'Draft report for RNASeq analysis'
+                        report_title: params.da_report_title,
+                        report_author: params.da_report_author,
+                        report_description: params.da_report_description
                     ]
                 ]
             }
