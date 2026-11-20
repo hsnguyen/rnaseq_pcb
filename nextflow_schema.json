@@ -56,6 +56,16 @@
             "type": "object",
             "fa_icon": "fas fa-dna",
             "description": "Reference genome related files and options required for the workflow.",
+                "run_da": {
+                    "type": "boolean",
+                "run_da": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run exploratory plots, differential plots, ShinyNGS, and Quarto reports after RNA-seq quantification."
+                },
+                    "default": false,
+                    "description": "Run exploratory plots, differential plots, ShinyNGS, and Quarto reports after RNA-seq quantification."
+                },
             "properties": {
                 "genome": {
                     "type": "string",
@@ -1058,7 +1068,6 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["da_study_name", "da_study_type", "da_input", "da_outdir"],
             "properties": {
                 "da_study_name": {
                     "type": "string",
@@ -1146,7 +1155,6 @@
                     "fa_icon": "fas fa-file-signature"
                 }
             },
-            "required": ["da_observations_id_col", "da_observations_type"],
             "fa_icon": "fas fa-eye"
         },
         "base_features_options": {
@@ -1204,7 +1212,6 @@
                     "fa_icon": "fas fa-align-justify"
                 }
             },
-            "required": ["da_features_id_col", "da_features_name_col", "da_features_type"],
             "fa_icon": "fas fa-sitemap"
         },
         "preprocessing_gtf_parsing_options": {
@@ -1288,7 +1295,6 @@
                 }
             },
             "fa_icon": "fas fa-filter",
-            "required": ["filtering_min_abundance"]
         },
         "exploratory_exploratory_analysis": {
             "title": "[exploratory] Exploratory analysis",
@@ -1363,13 +1369,6 @@
                 }
             },
             "fa_icon": "fas fa-chart-area",
-            "required": [
-                "da_exploratory_clustering_method",
-                "da_exploratory_cor_method",
-                "da_exploratory_n_features",
-                "da_exploratory_main_variable",
-                "da_exploratory_palette_name"
-            ]
         },
         "differential_differential_analysis": {
             "title": "[differential] Differential analysis",
@@ -1426,13 +1425,6 @@
                     "description": "In differential analysis (DEseq2 or Limma), subset to the contrast samples before modelling variance?"
                 }
             },
-            "required": [
-                "da_differential_feature_id_column",
-                "da_differential_min_fold_change",
-                "da_differential_max_pval",
-                "da_differential_max_qval",
-                "da_differential_palette_name"
-            ],
             "fa_icon": "fas fa-adjust"
         },
         "differential_deseq2_specific_options_rna_seq_only": {
