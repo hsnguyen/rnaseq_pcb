@@ -394,12 +394,12 @@ def prepareModuleInput(channel, category) {
 def prepareModuleOutput(channel, paramsets, List meta_keys_to_remove = null, Boolean use_meta_key = false) {
     return paramsets
         .combine(channel)  // [ meta_paramset, meta_out, files ... ]
-        //.filter { it ->
-        //    def meta_paramset = it[0]
-        //    def meta_out = it[1]
-        //    // check if all the k,v in meta_out.params match with those in meta_paramset.params
-        //    meta_out.params.every { key, value -> meta_paramset.params[key] == value }
-        //}
+        .filter { it ->
+            def meta_paramset = it[0]
+            def meta_out = it[1]
+            // check if all the k,v in meta_out.params match with those in meta_paramset.params
+            meta_out.params.every { key, value -> meta_paramset.params[key] == value }
+        }
         .map { it ->
             def meta_paramset = it[0]
             def meta_out = it[1]
@@ -461,6 +461,9 @@ def getRelevantParams(paramset, category) {
         matchingGroups.each { groupName, group ->
             if (group.properties) {
                 group.properties.each { paramName, paramProps ->
+                    //remove the prefix da_ to match
+                    if(paramName.startsWith('da_'))
+                        paramName = paramName.drop(3)
                     if (paramset.containsKey(paramName)) {
                         relevantParams[paramName] = paramset[paramName]
                     }
