@@ -178,8 +178,8 @@ workflow {
 
     main:
     if (params.run_da) {
-        if (!params.da_contrasts || !params.da_gtf) {
-            error 'When --run_da is enabled, --da_contrasts, and --da_gtf are required'
+        if (!params.da_contrasts) {
+            error 'When --run_da is enabled, --da_contrasts is required'
         }
         if (params.skip_quantification_merge) {
             error 'DA requires merged gene counts; do not combine --run_da with --skip_quantification_merge'
