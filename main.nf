@@ -218,8 +218,8 @@ workflow {
                         input: params.da_input?file(params.da_input, checkIfExists: true):file(params.input, checkIfExists: true),
                         matrix: counts,
                         contrasts: file(params.da_contrasts, checkIfExists: true),
-                        round_digits: da_round_digits,
-                        seed: da_seed, 
+                        round_digits: params.da_round_digits,
+                        seed: params.da_seed, 
                         outdir: "${params.outdir}/da",
                         gtf: params.da_gtf?file(params.da_gtf, checkIfExists: true):(params.gtf?file(params.gtf, checkIfExists: true):null),
                         gene_sets_files: (params.da_gene_sets ?: null), //can be comma-separated list, check later
