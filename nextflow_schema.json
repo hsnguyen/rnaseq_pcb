@@ -968,7 +968,7 @@
                 "da_functional_method": {
                     "type": "string",
                     "enum": ["none", "gsea", "gprofiler2", "decoupler"],
-                    "default": "gsea",
+                    "default": "none",
                     "description": "Functional analysis method."
                 },
                 "da_features_id_col": {
