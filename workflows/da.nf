@@ -153,7 +153,7 @@ workflow DA {
     ch_validated_samplemeta = prepareModuleOutput(VALIDATOR.out.sample_meta, ch_paramsets)
     ch_validated_featuremeta = prepareModuleOutput(VALIDATOR.out.feature_meta, ch_paramsets)
     ch_matrix_for_differential = ch_validated_assays
-        .map { meta, assays -> [meta, assays[0]] }
+        .map { meta, assays -> [meta, assays] }
 
     // Split the contrasts for differential analysis and plots.
     ch_contrasts = ch_validated_contrast
@@ -229,15 +229,12 @@ workflow DA {
     ch_differential_results = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.results_genewise, ch_paramsets, ['differential_method'], true) // key, meta, results
     ch_differential_results_filtered = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.results_genewise_filtered, ch_paramsets, ['differential_method'], true) // key, meta, results_filtered
     ch_differential_model = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.model, ch_paramsets, ['differential_method'], true) // key, meta, model
-
     // Whereas these channels, the meta do not contain contrast info, as they come from the NORM modules instead of DIFFERENTIAL modules.
     // We do not need to define an extra key based on meta for later join/combine.
     ch_differential_norm = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.normalised_matrix, ch_paramsets, ['differential_method']) // meta, norm file
     ch_differential_varstab = prepareModuleOutput(ABUNDANCE_DIFFERENTIAL_FILTER.out.variance_stabilised_matrix, ch_paramsets, ['differential_method']) // meta, varstab file
-
     ch_versions = ch_versions
         .mix(ABUNDANCE_DIFFERENTIAL_FILTER.out.versions)
-
     // ========================================================================
     // Annotate differential results with feature metadata using csvtk_join
     // ========================================================================
@@ -259,8 +256,9 @@ workflow DA {
 
     ch_norm = ch_differential_norm
     ch_processed_matrices = ch_norm.join(ch_differential_varstab, remainder: true)
-        .map { meta, norm, vs -> [meta, vs ? [norm, vs].flatten() : [norm]] }
-
+        .map { meta, norm, vs -> 
+            def key = [id: meta.params.study_name, paramset_name: meta.paramset_name, params: meta.params]
+            return [key, vs ? [norm, vs].flatten() : [norm]] }
     // ========================================================================
     // Functional analysis
     // ========================================================================
@@ -355,14 +353,19 @@ workflow DA {
     // Plot figures
     // ========================================================================
 
-    ch_all_matrices = ch_validated_samplemeta
-        .join(ch_validated_featuremeta)
-        .join(ch_norm)
-        .join(ch_differential_varstab, remainder: true)
-        .map { meta, samples, features, norm, vs ->
-            [meta, samples, features, vs ? [norm, vs].flatten() : [norm]]
+    ch_mat = ch_matrix_for_differential // [meta, raw]
+                .join(ch_processed_matrices, remainder: true) // [meta, [norm,vs]]
+                .map { meta, raw, matrices ->
+                    def processed_matrices = matrices ?: []
+                    [meta, [raw] + processed_matrices]
+                }
+    
+    ch_all_matrices = ch_validated_samplemeta   // meta, samples
+        .join(ch_validated_featuremeta)         // meta, features
+        .join(ch_mat)                           // meta, list of matrices (raw, norm, variance stabilized
+        .map { meta, samples, features, matrices ->
+            return [meta, samples, features, matrices]
         }
-
     // Exploratory analysis
 
     ch_exploratory_input = ch_contrast_variables         // [meta, variable]
