@@ -29,10 +29,10 @@ include { CSVTK_JOIN                                        } from '../modules/n
 include { softwareVersionsToYAML                            } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 
 //
-// SUBWORKFLOW: Installed from nf-core/subworkflows but then edited to keep DESeq2 only
+// SUBWORKFLOW: Installed from nf-core/subworkflows but use DESeq2 only
 //
-include { ABUNDANCE_DIFFERENTIAL_FILTER                     } from '../subworkflows/local/abundance_differential_filter/main'
-include { DIFFERENTIAL_FUNCTIONAL_ENRICHMENT                } from '../subworkflows/local/differential_functional_enrichment/main'
+include { ABUNDANCE_DIFFERENTIAL_FILTER                     } from '../subworkflows/nf-core/abundance_differential_filter/main'
+include { DIFFERENTIAL_FUNCTIONAL_ENRICHMENT                } from '../subworkflows/nf-core/differential_functional_enrichment/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -336,6 +336,7 @@ workflow DA {
         .join(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.gprofiler2_all_enrich, remainder: true)
         .join(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.gprofiler2_sub_enrich, remainder: true)
         .mix(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.gsea_report_tsv)
+        .mix(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.grea_results)
 
 
     // Note that 'functional_method' is additionally added to the meta in the functional subworkflow.
@@ -605,13 +606,16 @@ workflow DA {
             input_files:
             [new_meta, files]
         }
+    //ch_report_input.report_file.view()
+    //ch_report_input.report_params.view()
+    //ch_report_input.input_files.view()
 
     // Render the final report
     // One report per paramset will be created
     QUARTONOTEBOOK(
         ch_report_input.report_file,
         ch_report_input.report_params,
-        ch_report_input.input_files.map{ meta, files -> files },
+        ch_report_input.input_files.map{ meta, files -> files }, //not used :))
         channel.value([])
     )
 

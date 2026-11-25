@@ -1906,7 +1906,7 @@
                     "fa_icon": "fas fa-heading",
                     "description": "A title for reporting outputs"
                 },
-                "report_author": {
+                "da_report_author": {
                     "type": "string",
                     "fa_icon": "fas fa-user-edit",
                     "description": "An author for reporting outputs"
