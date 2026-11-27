@@ -640,14 +640,6 @@ workflow DA {
             input_files:
             [new_meta, files]
         }
-    //ch_report_input.report_file.map { meta, _file -> 
-    //    def yamlBuilder = new groovy.yaml.YamlBuilder()
-    //    yamlBuilder.call(meta.params.toString())
-    //    def yaml_content = yamlBuilder.toString().tokenize('\n').join("\n    ")
-    //    return yaml_content
-    //}.view()
-    //ch_report_input.report_params.view()
-    //ch_report_input.input_files.view()
 
     // Render the final report
     // One report per paramset will be created
