@@ -793,7 +793,7 @@ If you override the resolved index by supplying your own `--star_index`, the pip
 The bundled iGenomes catalogue is provided for legacy compatibility but is **not recommended for new analyses**, because:
 
 - Gene annotations in iGenomes are extremely out of date. This can be particularly problematic for RNA-seq analysis, which relies on accurate gene annotation.
-- Some iGenomes references (e.g., GRCh38) point to annotation files that use gene symbols as the primary identifier. This can cause issues for downstream analysis, such as the nf-core [differential abundance](https://nf-co.re/differentialabundance) workflow where a conventional gene identifier distinct from symbol is expected.
+- Some iGenomes references (e.g., GRCh38) point to annotation files that use gene symbols as the primary identifier. This can cause issues for downstream analysis, such as the nf-core [differential abundance](https://nf-co.re/da) workflow where a conventional gene identifier distinct from symbol is expected.
 
 For new analyses, supply `--fasta`/`--gtf` directly (see [Explicit reference file specification](#explicit-reference-file-specification-recommended) above), or define your own catalogue using the same `params.genomes` shape (see below). A user-supplied catalogue can use whatever keys you want, including iGenomes-style names like `GRCh37` to shadow the default entries with current reference data.
 
