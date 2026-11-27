@@ -36,6 +36,40 @@ include { DIFFERENTIAL_FUNCTIONAL_ENRICHMENT                } from '../subworkfl
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    SANITIZE REPORT METADATA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+def sanitizeReportValue(value) {
+    if (value instanceof Map) {
+        return value.collectEntries { key, item ->
+            [(key.toString()): sanitizeReportValue(item)]
+        }
+    }
+    if (value instanceof Collection) {
+        return value.collect { item -> sanitizeReportValue(item) }
+    }
+    if (value instanceof Path) {
+        return value.toString()
+    }
+    if (value == null || value instanceof CharSequence ||
+        value instanceof Number || value instanceof Boolean) {
+        return value
+    }
+    return value.toString()
+}
+
+def sanitizeReportMeta(meta, reportName) {
+    [
+        id: meta.id?.toString(),
+        paramset_name: meta.paramset_name?.toString(),
+        params: sanitizeReportValue(meta.params ?: [:]),
+        report_file_name: reportName?.toString()
+    ]
+}
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
@@ -587,8 +621,9 @@ workflow DA {
             }
         }
         .multiMap { meta, report_file, files ->
-            // add report_file base name
-            def new_meta = meta + [ report_file_name: report_file.baseName ]
+            // Quarto serializes this metadata through YamlBuilder. Keep only a
+            // finite, YAML-safe projection and use it consistently for joins.
+            def new_meta = sanitizeReportMeta(meta, report_file.baseName)
 
             report_file:
             [new_meta, report_file]
