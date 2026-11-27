@@ -5,7 +5,7 @@ gtf: '/scratch/pawsey1152/snguyen/databases/rnaseq/Homo_sapiens.GRCh38.116.gtf.g
 ###down here is for da analysis
 run_da: true
 da_contrasts: '${projectDir}/assets/pcb/runparams/pdo_434_rnaseqda_contrast.yml'
-da_functional_method: 'gsea'
-da_gene_sets: '/scratch/pawsey1152/snguyen/databases/rnaseq/h.all.v2022.1.Hs.symbols.gmt'
-#da_functional_method: 'gprofiler2'
-#da_gprofiler2_organism: 'hsapiens'
+#da_functional_method: 'gsea'
+#da_gene_sets: '/scratch/pawsey1152/snguyen/databases/rnaseq/h.all.v2022.1.Hs.symbols.gmt'
+da_functional_method: 'gprofiler2'
+da_gprofiler2_organism: 'hsapiens'

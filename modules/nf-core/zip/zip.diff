@@ -1,6 +1,5 @@
 Changes in component 'nf-core/zip'
 'modules/nf-core/zip/environment.yml' is unchanged
-'modules/nf-core/zip/meta.yml' is unchanged
 Changes in 'zip/main.nf':
 --- modules/nf-core/zip/main.nf
 +++ modules/nf-core/zip/main.nf
@@ -14,6 +13,7 @@ Changes in 'zip/main.nf':
      when:
      task.ext.when == null || task.ext.when
 
-'modules/nf-core/zip/tests/main.nf.test' is unchanged
-'modules/nf-core/zip/tests/main.nf.test.snap' is unchanged
+'modules/nf-core/zip/meta.yml' is unchanged
+'modules/nf-core/zip/tests/main.nf.test' was removed
+'modules/nf-core/zip/tests/main.nf.test.snap' was removed
 ************************************************************

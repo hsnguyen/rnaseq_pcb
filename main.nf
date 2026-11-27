@@ -207,17 +207,18 @@ workflow {
     NFCORE_RNASEQ ()
 
     if (params.run_da) {
+        
         ch_da_paramsets = NFCORE_RNASEQ.out.counts_gene_length_scaled
             .map { _meta, counts ->
                 [
                     id: params.da_study_name,
-                    paramset_name: params.da_study_name,
+                    paramset_name: "params_" + params.da_study_type?:"contrasts", 
                     params: [
+                        input: params.da_input?:params.input,
                         study_name: params.da_study_name,
                         study_type: params.da_study_type,
-                        input: params.da_input?:params.input,
-                        matrix: counts,
                         contrasts: params.da_contrasts,
+                        matrix: counts,
                         round_digits: params.da_round_digits,
                         seed: params.da_seed, 
                         outdir: "${params.outdir}/da",
@@ -356,7 +357,19 @@ def anySampleAutoStrandedness() {
     samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
         .any { row -> row[0].strandedness == 'auto' && !(params.skip_alignment && (row[3] || row[4])) }
 }
-
+// Define a reusable function to get current timestamp
+def getTimestamp(String pattern = "YYMMdd_HHmmss") {
+    try {
+        // Import Java time classes
+        def now = java.time.LocalDateTime.now()
+        def formatter = java.time.format.DateTimeFormatter.ofPattern(pattern)
+        return now.format(formatter)
+    } catch (Exception e) {
+        // Handle invalid pattern or other errors
+        println "Error generating timestamp: ${e.message}"
+        return ""
+    }
+}
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     THE END

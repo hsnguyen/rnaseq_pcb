@@ -346,8 +346,9 @@ workflow DA {
     // by setting 'use_meta_key' to true. This will facilitate later on to join/combine channels.
     ch_functional_results = prepareModuleOutput(ch_functional_results, ch_paramsets, ['functional_method'], true) // key, meta, [ functional results ]
 
-    ch_versions = ch_versions
-        .mix(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.versions)
+    // no more versions channel from this latest subworkflow (use topic)
+    //ch_versions = ch_versions
+    //    .mix(DIFFERENTIAL_FUNCTIONAL_ENRICHMENT.out.versions)
 
 
     // ========================================================================
@@ -513,7 +514,6 @@ workflow DA {
             versions_file: entry instanceof Path
             versions_tuple: true
         }
-
     def topic_versions_string = topic_versions.versions_tuple
         .map { process, tool, version ->
             [ process[process.lastIndexOf(':')+1..-1], "  ${tool}: ${version}" ]
@@ -523,7 +523,6 @@ workflow DA {
             tool_versions.unique().sort()
             "${process}:\n${tool_versions.join('\n')}"
         }
-
     softwareVersionsToYAML(ch_versions.mix(topic_versions.versions_file))
         .mix(topic_versions_string)
         .collectFile(
@@ -606,7 +605,12 @@ workflow DA {
             input_files:
             [new_meta, files]
         }
-    //ch_report_input.report_file.view()
+    //ch_report_input.report_file.map { meta, _file -> 
+    //    def yamlBuilder = new groovy.yaml.YamlBuilder()
+    //    yamlBuilder.call(meta.params.toString())
+    //    def yaml_content = yamlBuilder.toString().tokenize('\n').join("\n    ")
+    //    return yaml_content
+    //}.view()
     //ch_report_input.report_params.view()
     //ch_report_input.input_files.view()
 
